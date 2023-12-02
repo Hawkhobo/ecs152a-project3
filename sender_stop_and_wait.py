@@ -1,11 +1,6 @@
 # Code has been sampled from Muhammad Haroon's code, with modifications.
 # Original code: https://github.com/Haroon96/ecs152a-fall-2023/blob/main/week7/docker/sender.py
 
-# TO DO: 
-# Send one packet, wait for ACK, if timeout send again and double timeout
-# Think about dynamic RTT distribution, if implementable. Also updates T. Second Order Moment of RTT Gaussian 
-# Sending `file.mp3`, 1024 bytes per packet 
-
 import socket
 from time import time 
 
