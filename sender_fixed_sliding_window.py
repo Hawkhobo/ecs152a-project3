@@ -1,6 +1,13 @@
 # Code has been sampled from Muhammad Haroon's code, with modifications.
 # Original code: https://github.com/Haroon96/ecs152a-fall-2023/blob/main/week7/docker/sender.py
 
+"""
+Theory Crafting:
+
+- we know that a packet has not arrived, if the seq_id of the packet sent != the ack_id of the packet recieved
+
+"""
+
 import socket
 from time import time 
 
@@ -12,8 +19,6 @@ SEQ_ID_SIZE = 4
 MESSAGE_SIZE = PACKET_SIZE - SEQ_ID_SIZE
 # total packets to send
 WINDOW_SIZE = 10
-
-# 
 
 # read data
 with open('./docker/file.mp3', 'rb') as f:
