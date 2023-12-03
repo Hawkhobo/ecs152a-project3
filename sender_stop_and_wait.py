@@ -12,7 +12,7 @@ SEQ_ID_SIZE = 4
 MESSAGE_SIZE = PACKET_SIZE - SEQ_ID_SIZE
 
 # read data
-with open('./docker/file.mp3', 'rb') as f:
+with open('./docker/send.txt', 'rb') as f:
     data = f.read()
  
 total_packet_delay = 0
