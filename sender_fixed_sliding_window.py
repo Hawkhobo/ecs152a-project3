@@ -17,9 +17,6 @@ WINDOW_SIZE = 100
 with open('./docker/file.mp3', 'rb') as f:
     data = f.read()
  
-total_packet_delay = 0
-packetCount = 0
- 
 # create a udp socket
 start_throughput = time()
 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
@@ -28,18 +25,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     udp_socket.bind(("0.0.0.0", 5000))
 
     timeoutDuration = 1
+    udp_socket.settimeout(1)
 
-    # start sending data from 0th sequence
     seq_id = 0
     windowSpace = WINDOW_SIZE
 
     acks = {}
-    packet_start_times = {}
-    packet_end_times = {}
-    udp_socket.settimeout(1)
+    startTimes = {}
+    endTimes = {}
 
     sent_empty = False
 
+    # start sending data from 0th sequence
     ack_id = 0
     while True:
         for _ in range(windowSpace):
@@ -52,8 +49,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             
             acks[seq_id] = False
             
-            if seq_id not in packet_start_times:
-                packet_start_times[seq_id] = time()
+            if seq_id not in startTimes:
+                startTimes[seq_id] = time()
 
             udp_socket.sendto(message, ('localhost', 5001))
 
@@ -64,11 +61,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 break
             
         try:
-            if ack_id in packet_start_times and time() - packet_start_times[ack_id] >= timeoutDuration:
+            if ack_id in startTimes and time() - startTimes[ack_id] >= timeoutDuration:
                 message = int.to_bytes(ack_id, SEQ_ID_SIZE, byteorder='big', signed=True) + data[ack_id: ack_id + MESSAGE_SIZE]
 
                 udp_socket.sendto(message, ('localhost', 5001))
-                packet_start_times[ack_id] = time()
+                startTimes[ack_id] = time()
                 
             ack, _ = udp_socket.recvfrom(PACKET_SIZE)
             
@@ -83,8 +80,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 if a < ack_id and acks[a] != True:
                     acks[a] = True
                     windowSpace += 1
-                    if a not in packet_end_times:
-                            packet_end_times[a] = time()
+                    if a not in endTimes:
+                            endTimes[a] = time()
 
         except socket.timeout:
             pass
@@ -101,17 +98,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     throughput  = len(data) / (end_throughput - start_throughput)
 
     # get average packet delay
-    avg_delay = 0
-    for k in packet_end_times.keys():
-        packet_delay = packet_end_times[k] - packet_start_times[k]
-        avg_delay += packet_delay
+    avg_packet_delay = 0
+    for k in endTimes.keys():
+        packet_delay = endTimes[k] - startTimes[k]
+        avg_packet_delay += packet_delay
 
-    avg_delay /= len(packet_end_times.keys())
+    avg_packet_delay /= len(endTimes.keys())
 
     # get performance metric (throughput/average per packet delay)
-    performance_metric = throughput / avg_delay
+    performance_metric = throughput / avg_packet_delay
 
-    print(f'{round(throughput, 2)}, {round(avg_delay, 2)}, {round(performance_metric, 2)}')
+    print(f'{round(throughput, 2)}, {round(avg_packet_delay, 2)}, {round(performance_metric, 2)}')
 
     # close the connection
     udp_socket.close()
