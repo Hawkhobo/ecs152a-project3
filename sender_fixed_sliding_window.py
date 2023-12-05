@@ -65,8 +65,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             
         try:
             if ack_id in packet_start_times and time() - packet_start_times[ack_id] >= timeoutDuration:
-                print()
-                print("timeout resend ack_id: ", ack_id)
                 message = int.to_bytes(ack_id, SEQ_ID_SIZE, byteorder='big', signed=True) + data[ack_id: ack_id + MESSAGE_SIZE]
 
                 udp_socket.sendto(message, ('localhost', 5001))
