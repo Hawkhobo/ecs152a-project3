@@ -3,7 +3,6 @@
 
 import socket
 from time import time 
-from math import ceil
 
 # total packet size
 PACKET_SIZE = 1024
@@ -76,6 +75,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
         # wait for acknowledgement
         retransmitted = False
         while True:
+            
             try:
                 # wait for ack
                 ack, _ = udp_socket.recvfrom(PACKET_SIZE)
