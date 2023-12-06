@@ -12,7 +12,7 @@ SEQ_ID_SIZE = 4
 MESSAGE_SIZE = PACKET_SIZE - SEQ_ID_SIZE
 
 # read data
-with open('./docker/send.txt', 'rb') as f:
+with open('./docker/file.mp3', 'rb') as f:
     data = f.read()
  
 total_packet_delay = 0
@@ -25,14 +25,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     # bind the socket to a OS port
     udp_socket.bind(("0.0.0.0", 5000))
 
-    timeoutDuration = 1
-    
-    # start sending data from 0th sequence
     seq_id = 0
     sent_empty = False
+
     # Run a timer for throughput
     while True:
         
+        timeoutDuration = 1
         udp_socket.settimeout(1)
         
         # construct message
@@ -59,7 +58,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
 
                 # extract ack id
                 ack_id = int.from_bytes(ack[:SEQ_ID_SIZE], byteorder='big')
-
+                
                 if ack_id != len(data) or not sent_empty:
                     break
                 
@@ -78,6 +77,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     # Run the time until the last packet from the file, and NOT the final closing message. 
     end_throughput = time()
     
+    # send final closing message
+    finack = int.to_bytes(0, SEQ_ID_SIZE, byteorder='big', signed=True) + b'==FINACK=='
+    udp_socket.sendto(finack, ('localhost', 5001))
+    
     # get throughput
     throughput  = len(data) / (end_throughput - start_throughput)
 
@@ -88,10 +91,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     performance_metric = throughput / avg_packet_delay
 
     print(f'{round(throughput, 2)}, {round(avg_packet_delay, 2)}, {round(performance_metric, 2)}')
-    
-    # send final closing message
-    finack = int.to_bytes(0, SEQ_ID_SIZE, byteorder='big', signed=True) + b'==FINACK=='
-    udp_socket.sendto(finack, ('localhost', 5001))
     
     # close the connection
     udp_socket.close()
