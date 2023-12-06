@@ -24,21 +24,27 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
     # bind the socket to a OS port
     udp_socket.bind(("0.0.0.0", 5000))
 
-    timeoutDuration = 1
-    udp_socket.settimeout(1)
+    timeoutDuration = 0.1
+    udp_socket.settimeout(0.1)
 
     seq_id = 0
+    sent_empty = False
     windowSpace = WINDOW_SIZE
 
-    acks = {}
     startTimes = {}
     endTimes = {}
 
-    sent_empty = False
+    dupCount = 0
+    prevAck = 0
+    retransmitted = False
+
+    acks = {}
+    messages = []
 
     # start sending data from 0th sequence
     ack_id = 0
     while True:
+
         for _ in range(windowSpace):
             message = int.to_bytes(seq_id, SEQ_ID_SIZE, byteorder='big', signed=True) + data[seq_id: seq_id + MESSAGE_SIZE]
             
@@ -47,6 +53,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 message = int.to_bytes(len(data), SEQ_ID_SIZE, byteorder='big', signed=True)
                 sent_empty = True
             
+            messages.append((seq_id, message))
             acks[seq_id] = False
             
             if seq_id not in startTimes:
@@ -61,12 +68,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 break
             
         try:
-            if ack_id in startTimes and time() - startTimes[ack_id] >= timeoutDuration:
-                message = int.to_bytes(ack_id, SEQ_ID_SIZE, byteorder='big', signed=True) + data[ack_id: ack_id + MESSAGE_SIZE]
-
-                udp_socket.sendto(message, ('localhost', 5001))
-                startTimes[ack_id] = time()
-                
+            
             ack, _ = udp_socket.recvfrom(PACKET_SIZE)
             
             ack_id = int.from_bytes(ack[:SEQ_ID_SIZE], byteorder='big')
@@ -83,10 +85,33 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                     if a not in endTimes:
                             endTimes[a] = time()
 
+            if prevAck == ack_id and not retransmitted:
+                dupCount += 1
+
+                if dupCount == 3:
+                    raise socket.timeout
+            else:
+                prevAck = ack_id
+                dupCount = 0
+                retransmitted = False
+
+                timeoutDuration = 0.1
+                udp_socket.settimeout(0.1)
+                
         except socket.timeout:
-            pass
+
+            # no ack received, resend unacked messages
+            for sid, message in messages:
+                if not acks[sid]:
+                    udp_socket.sendto(message, ('localhost', 5001))
+                    startTimes[ack_id] = time()
+                    retransmitted = True
+                    break
+
+            # Doubles timeout duration
+            timeoutDuration += timeoutDuration
+            udp_socket.settimeout(timeoutDuration)
      
-    
     # Run the time until the last packet from the file, and NOT the final closing message. 
     end_throughput = time()
 
