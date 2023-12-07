@@ -100,7 +100,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
 
             messages.append((seq_id_tmp, message))
             acks[seq_id_tmp] = False
-
+            
             udp_socket.sendto(message, ('localhost', 5001))
 
             if seq_id_tmp not in startTimes:
@@ -120,8 +120,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 ack_id = int.from_bytes(ack[:SEQ_ID_SIZE], byteorder='big')
                 ack_message = ack[SEQ_ID_SIZE:]
 
-                print(f'ack_id recv: {ack_id}')
-            
                 if ack_message == b'fin':
                     break
 
@@ -132,11 +130,12 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 actual_ack = ack_id - MESSAGE_SIZE
                 # Compute various delay values to be used in Vegas
                 # Determine BaseRTT
-                if currentTime - startTimes[actual_ack] < baseRTT:
-                    baseRTT = currentTime - startTimes[actual_ack]
+                if actual_ack in startTimes:
+                    if currentTime - startTimes[actual_ack] < baseRTT:
+                        baseRTT = currentTime - startTimes[actual_ack]
 
-                # Determine currentRTT
-                currentRTT = currentTime - startTimes[actual_ack]
+                    # Determine currentRTT
+                    currentRTT = currentTime - startTimes[actual_ack]
                 
                 # Determine expected and actual throughput
                 expected = cwnd / baseRTT
@@ -159,7 +158,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 """if checkNext2 < 3:
                     if checkNext2 != 0:
                         checkNext2 -= 1
-                        if currentTime - startTimes[actual_ack] > timeoutDuration:
+                        if currentTime - startTimes[actual_ack] >= timeoutDuration:
                             raise socket.timeout
                     else:
                         checkNext2 = 3"""
@@ -167,7 +166,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 # duplicate detected
                 if prevAck == ack_id and not retransmitted:
                     """ # does estimated RTT exceed RTO?
-                    if currentTime - startTimes[actual_ack] > timeoutDuration:
+                    if currentTime - startTimes[actual_ack] >= timeoutDuration:
                         checkNext2 -= 1
                         raise socket.timeout
                     # If not, 3xACK still applies
@@ -188,14 +187,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                 
                 # all acks received, move on
                 if all(acks.values()):
+
                     # update congestion window
                     if not timeout:
                         # Congestion Avoidance
                         if isCongest:
                             cwnd = congestionInterval(extra_data, cwnd)
-
+                            
                         # Slow Start
                         else:
+
                             # Next slow-start round: evaluation or increase?
                             if switchInterval:
                                 cwnd = increaseInterval(cwnd)
@@ -205,9 +206,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                                 isCongest = evaluationInterval(diff)
                                 switchInterval = True
 
-                        timeout = False
-
-                        break
+                    timeout = False
+                    
+                    break
 
             except socket.timeout:
 
