@@ -84,7 +84,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
         messages = []
         acks = {}
 
-            seq_id_tmp = seq_id
+        seq_id_tmp = seq_id
         for i in range(cwnd):
 
             if sent_empty:
